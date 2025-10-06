@@ -1,0 +1,33 @@
+{
+  "tests": [
+    {
+      "name": "Get schedule list",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "schedule": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create new schedule item",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "teacher": "Тестовый преподаватель",
+        "subject": "Тестовый предмет",
+        "time": "10:00 - 11:30",
+        "classroom": "Ауд. 100",
+        "day": "monday",
+        "type": "lecture"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "id": "string",
+        "message": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

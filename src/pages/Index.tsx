@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,62 +33,7 @@ interface ScheduleItem {
   type: 'lecture' | 'practice' | 'lab';
 }
 
-const initialScheduleData: ScheduleItem[] = [
-  {
-    id: '1',
-    teacher: 'Иванова М.А.',
-    subject: 'Математический анализ',
-    time: '9:00 - 10:30',
-    classroom: 'Ауд. 301',
-    day: 'monday',
-    type: 'lecture',
-  },
-  {
-    id: '2',
-    teacher: 'Петров В.И.',
-    subject: 'Программирование',
-    time: '10:45 - 12:15',
-    classroom: 'Ауд. 205',
-    day: 'monday',
-    type: 'practice',
-  },
-  {
-    id: '3',
-    teacher: 'Сидорова Л.П.',
-    subject: 'Физика',
-    time: '12:30 - 14:00',
-    classroom: 'Ауд. 108',
-    day: 'monday',
-    type: 'lab',
-  },
-  {
-    id: '4',
-    teacher: 'Иванова М.А.',
-    subject: 'Высшая математика',
-    time: '9:00 - 10:30',
-    classroom: 'Ауд. 301',
-    day: 'tuesday',
-    type: 'lecture',
-  },
-  {
-    id: '5',
-    teacher: 'Козлов А.С.',
-    subject: 'Алгоритмы и структуры данных',
-    time: '10:45 - 12:15',
-    classroom: 'Ауд. 210',
-    day: 'tuesday',
-    type: 'practice',
-  },
-  {
-    id: '6',
-    teacher: 'Петров В.И.',
-    subject: 'Web-разработка',
-    time: '14:15 - 15:45',
-    classroom: 'Ауд. 205',
-    day: 'wednesday',
-    type: 'lab',
-  },
-];
+const API_URL = 'https://functions.poehali.dev/2737a169-f899-401d-a27f-c71bfba5bb62';
 
 const dayNames: Record<string, string> = {
   monday: 'Понедельник',
@@ -111,7 +56,8 @@ const typeLabels: Record<string, string> = {
 };
 
 export default function Index() {
-  const [scheduleData, setScheduleData] = useState<ScheduleItem[]>(initialScheduleData);
+  const [scheduleData, setScheduleData] = useState<ScheduleItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState('monday');
   const [selectedTeacher, setSelectedTeacher] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -125,6 +71,23 @@ export default function Index() {
     type: 'lecture',
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    loadSchedule();
+  }, []);
+
+  const loadSchedule = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      setScheduleData(data.schedule || initialScheduleData);
+    } catch (error) {
+      setScheduleData(initialScheduleData);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const teachers = ['all', ...new Set(scheduleData.map((item) => item.teacher))];
 
@@ -165,7 +128,7 @@ export default function Index() {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.teacher || !formData.subject || !formData.time || !formData.classroom) {
       toast({
         title: 'Ошибка',
@@ -175,36 +138,66 @@ export default function Index() {
       return;
     }
 
-    if (editingItem) {
-      setScheduleData(
-        scheduleData.map((item) =>
-          item.id === editingItem.id ? { ...formData, id: item.id } as ScheduleItem : item
-        )
-      );
+    try {
+      if (editingItem) {
+        const response = await fetch(API_URL, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...formData, id: editingItem.id }),
+        });
+        
+        if (response.ok) {
+          await loadSchedule();
+          toast({
+            title: 'Занятие обновлено',
+            description: 'Изменения сохранены',
+          });
+        }
+      } else {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        
+        if (response.ok) {
+          await loadSchedule();
+          toast({
+            title: 'Занятие добавлено',
+            description: 'Новое занятие создано',
+          });
+        }
+      }
+      closeDialog();
+    } catch (error) {
       toast({
-        title: 'Занятие обновлено',
-        description: 'Изменения сохранены',
-      });
-    } else {
-      const newItem: ScheduleItem = {
-        ...formData as ScheduleItem,
-        id: Date.now().toString(),
-      };
-      setScheduleData([...scheduleData, newItem]);
-      toast({
-        title: 'Занятие добавлено',
-        description: 'Новое занятие создано',
+        title: 'Ошибка',
+        description: 'Не удалось сохранить изменения',
+        variant: 'destructive',
       });
     }
-    closeDialog();
   };
 
-  const handleDelete = (id: string) => {
-    setScheduleData(scheduleData.filter((item) => item.id !== id));
-    toast({
-      title: 'Занятие удалено',
-      description: 'Занятие удалено из расписания',
-    });
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}?id=${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        await loadSchedule();
+        toast({
+          title: 'Занятие удалено',
+          description: 'Занятие удалено из расписания',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось удалить занятие',
+        variant: 'destructive',
+      });
+    }
   };
 
   const exportToCalendar = () => {
@@ -285,7 +278,14 @@ export default function Index() {
 
           {Object.keys(dayNames).map((day) => (
             <TabsContent key={day} value={day} className="space-y-4">
-              {filteredSchedule.length === 0 ? (
+              {isLoading ? (
+                <Card className="text-center py-12 bg-white">
+                  <CardContent>
+                    <Icon name="Loader2" className="mx-auto h-12 w-12 text-primary animate-spin mb-4" />
+                    <p className="text-slate-500">Загрузка расписания...</p>
+                  </CardContent>
+                </Card>
+              ) : filteredSchedule.length === 0 ? (
                 <Card className="text-center py-12 bg-white">
                   <CardContent>
                     <Icon name="CalendarOff" className="mx-auto h-12 w-12 text-slate-300 mb-4" />
