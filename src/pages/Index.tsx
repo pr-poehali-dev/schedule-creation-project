@@ -10,6 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,7 +33,7 @@ interface ScheduleItem {
   type: 'lecture' | 'practice' | 'lab';
 }
 
-const scheduleData: ScheduleItem[] = [
+const initialScheduleData: ScheduleItem[] = [
   {
     id: '1',
     teacher: 'Иванова М.А.',
@@ -101,8 +111,19 @@ const typeLabels: Record<string, string> = {
 };
 
 export default function Index() {
+  const [scheduleData, setScheduleData] = useState<ScheduleItem[]>(initialScheduleData);
   const [selectedDay, setSelectedDay] = useState('monday');
   const [selectedTeacher, setSelectedTeacher] = useState('all');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
+  const [formData, setFormData] = useState<Partial<ScheduleItem>>({
+    teacher: '',
+    subject: '',
+    time: '',
+    classroom: '',
+    day: 'monday',
+    type: 'lecture',
+  });
   const { toast } = useToast();
 
   const teachers = ['all', ...new Set(scheduleData.map((item) => item.teacher))];
@@ -112,6 +133,79 @@ export default function Index() {
       item.day === selectedDay &&
       (selectedTeacher === 'all' || item.teacher === selectedTeacher)
   );
+
+  const openDialog = (item?: ScheduleItem) => {
+    if (item) {
+      setEditingItem(item);
+      setFormData(item);
+    } else {
+      setEditingItem(null);
+      setFormData({
+        teacher: '',
+        subject: '',
+        time: '',
+        classroom: '',
+        day: selectedDay,
+        type: 'lecture',
+      });
+    }
+    setIsDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+    setEditingItem(null);
+    setFormData({
+      teacher: '',
+      subject: '',
+      time: '',
+      classroom: '',
+      day: 'monday',
+      type: 'lecture',
+    });
+  };
+
+  const handleSave = () => {
+    if (!formData.teacher || !formData.subject || !formData.time || !formData.classroom) {
+      toast({
+        title: 'Ошибка',
+        description: 'Заполните все поля',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (editingItem) {
+      setScheduleData(
+        scheduleData.map((item) =>
+          item.id === editingItem.id ? { ...formData, id: item.id } as ScheduleItem : item
+        )
+      );
+      toast({
+        title: 'Занятие обновлено',
+        description: 'Изменения сохранены',
+      });
+    } else {
+      const newItem: ScheduleItem = {
+        ...formData as ScheduleItem,
+        id: Date.now().toString(),
+      };
+      setScheduleData([...scheduleData, newItem]);
+      toast({
+        title: 'Занятие добавлено',
+        description: 'Новое занятие создано',
+      });
+    }
+    closeDialog();
+  };
+
+  const handleDelete = (id: string) => {
+    setScheduleData(scheduleData.filter((item) => item.id !== id));
+    toast({
+      title: 'Занятие удалено',
+      description: 'Занятие удалено из расписания',
+    });
+  };
 
   const exportToCalendar = () => {
     const icsContent = generateICS(scheduleData);
@@ -165,6 +259,10 @@ export default function Index() {
           </Select>
 
           <div className="flex gap-2 ml-auto">
+            <Button onClick={() => openDialog()} className="bg-primary text-white">
+              <Icon name="Plus" className="mr-2 h-4 w-4" />
+              Добавить занятие
+            </Button>
             <Button onClick={exportToCalendar} variant="outline" className="bg-white">
               <Icon name="Calendar" className="mr-2 h-4 w-4" />
               Экспорт в календарь
@@ -213,9 +311,27 @@ export default function Index() {
                             <span className="font-medium">{item.teacher}</span>
                           </div>
                         </div>
-                        <Badge className={typeColors[item.type]}>
-                          {typeLabels[item.type]}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={typeColors[item.type]}>
+                            {typeLabels[item.type]}
+                          </Badge>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => openDialog(item)}
+                            className="h-8 w-8"
+                          >
+                            <Icon name="Pencil" className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDelete(item.id)}
+                            className="h-8 w-8 text-red-600 hover:text-red-700"
+                          >
+                            <Icon name="Trash2" className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -236,6 +352,103 @@ export default function Index() {
             </TabsContent>
           ))}
         </Tabs>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>
+                {editingItem ? 'Редактировать занятие' : 'Добавить занятие'}
+              </DialogTitle>
+              <DialogDescription>
+                Заполните информацию о занятии
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="subject">Предмет</Label>
+                <Input
+                  id="subject"
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  placeholder="Математический анализ"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="teacher">Преподаватель</Label>
+                <Input
+                  id="teacher"
+                  value={formData.teacher}
+                  onChange={(e) => setFormData({ ...formData, teacher: e.target.value })}
+                  placeholder="Иванова М.А."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="time">Время</Label>
+                  <Input
+                    id="time"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    placeholder="9:00 - 10:30"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="classroom">Аудитория</Label>
+                  <Input
+                    id="classroom"
+                    value={formData.classroom}
+                    onChange={(e) => setFormData({ ...formData, classroom: e.target.value })}
+                    placeholder="Ауд. 301"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="day">День недели</Label>
+                  <Select
+                    value={formData.day}
+                    onValueChange={(value) => setFormData({ ...formData, day: value })}
+                  >
+                    <SelectTrigger id="day">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(dayNames).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="type">Тип занятия</Label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(value: any) => setFormData({ ...formData, type: value })}
+                  >
+                    <SelectTrigger id="type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lecture">Лекция</SelectItem>
+                      <SelectItem value="practice">Практика</SelectItem>
+                      <SelectItem value="lab">Лаборатория</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={closeDialog}>
+                Отмена
+              </Button>
+              <Button onClick={handleSave}>
+                {editingItem ? 'Сохранить' : 'Добавить'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
