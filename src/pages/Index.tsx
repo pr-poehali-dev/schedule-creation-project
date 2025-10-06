@@ -33,6 +33,63 @@ interface ScheduleItem {
   type: 'lecture' | 'practice' | 'lab';
 }
 
+const initialScheduleData: ScheduleItem[] = [
+  {
+    id: '1',
+    teacher: 'Иванова М.А.',
+    subject: 'Математический анализ',
+    time: '9:00 - 10:30',
+    classroom: 'Ауд. 301',
+    day: 'monday',
+    type: 'lecture',
+  },
+  {
+    id: '2',
+    teacher: 'Петров В.И.',
+    subject: 'Программирование',
+    time: '10:45 - 12:15',
+    classroom: 'Ауд. 205',
+    day: 'monday',
+    type: 'practice',
+  },
+  {
+    id: '3',
+    teacher: 'Сидорова Л.П.',
+    subject: 'Физика',
+    time: '12:30 - 14:00',
+    classroom: 'Ауд. 108',
+    day: 'monday',
+    type: 'lab',
+  },
+  {
+    id: '4',
+    teacher: 'Иванова М.А.',
+    subject: 'Высшая математика',
+    time: '9:00 - 10:30',
+    classroom: 'Ауд. 301',
+    day: 'tuesday',
+    type: 'lecture',
+  },
+  {
+    id: '5',
+    teacher: 'Козлов А.С.',
+    subject: 'Алгоритмы и структуры данных',
+    time: '10:45 - 12:15',
+    classroom: 'Ауд. 210',
+    day: 'tuesday',
+    type: 'practice',
+  },
+  {
+    id: '6',
+    teacher: 'Петров В.И.',
+    subject: 'Web-разработка',
+    time: '14:15 - 15:45',
+    classroom: 'Ауд. 205',
+    day: 'wednesday',
+    type: 'lab',
+  },
+];
+
 const API_URL = 'https://functions.poehali.dev/2737a169-f899-401d-a27f-c71bfba5bb62';
 
 const dayNames: Record<string, string> = {
